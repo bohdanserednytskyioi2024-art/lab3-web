@@ -1,4 +1,5 @@
 {
+  "homepage": "https://bohdanserednytskyioi2024-artМ.github.io/lab3-web",
   "name": "lab3",
   "version": "0.1.0",
   "private": true,
@@ -9,10 +10,13 @@
     "@testing-library/user-event": "^13.5.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.1",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
