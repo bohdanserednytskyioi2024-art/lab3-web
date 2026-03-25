@@ -1,3 +1,5 @@
+const SERVER_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:5000';
+
 import { useState, useEffect, useRef } from 'react';
 import {
   collection, addDoc, getDocs, doc,
@@ -130,6 +132,28 @@ export default function CityPage({ user }) {
     setDoc(doc(db, 'users', user.uid, 'state', 'resources'), resources);
   }, [resources, user, dataLoaded]);
 
+  // Завантаження покращених будівель з Node.js сервера
+useEffect(() => {
+  if (!user) return;
+  async function loadUpgraded() {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/buildings?userId=${user.uid}`);
+      const data = await res.json();
+      if (data.buildings && data.buildings.length > 0) {
+        console.log('Покращені будівлі з сервера:', data.buildings);
+        // Оновлюємо рівні будівель які прийшли з сервера
+        setBuiltObjects(prev => prev.map(obj => {
+          const fromServer = data.buildings.find(b => b.id === obj.uid);
+          return fromServer ? { ...obj, level: fromServer.level } : obj;
+        }));
+      }
+    } catch (err) {
+      console.error('Помилка завантаження з сервера:', err);
+    }
+  }
+  loadUpgraded();
+}, [user]);
+
   const filtered = filter === 'всі' ? allBuildings : allBuildings.filter(b => b.type === filter);
 
   function changeBg() {
@@ -201,25 +225,51 @@ export default function CityPage({ user }) {
   }
 
   async function upgradeBuilding(uid) {
-    if (!user) return alert('Спочатку увійдіть!');
-    if (resources.budget < 25000) return alert('Не вистачає бюджету! Потрібно 25000₴');
+  if (!user) return alert('Спочатку увійдіть!');
+  if (resources.budget < 25000) return alert('Не вистачає бюджету! Потрібно 25000₴');
 
-    const obj = builtObjects.find(o => o.uid === uid);
-    const newLevel = obj.level + 1;
+  const obj = builtObjects.find(o => o.uid === uid);
+  const newLevel = obj.level + 1;
 
-    setResources(r => ({ ...r, budget: r.budget - 25000 }));
-    await updateDoc(doc(db, 'users', user.uid, 'buildings', uid), { level: newLevel });
+  // Оновлюємо бюджет локально і в Firestore
+  setResources(r => ({ ...r, budget: r.budget - 25000 }));
+  await updateDoc(doc(db, 'users', user.uid, 'buildings', uid), { level: newLevel });
 
-    setBuiltObjects(prev => prev.map(o => {
-      if (o.uid !== uid) return o;
-      const marker = markersRef.current[uid];
-      if (marker) {
-        marker.setPopupContent(`<b>${getLevelIcon(o.name, newLevel)} ${o.name}</b><br>Рівень: ${newLevel}`);
-        marker.openPopup();
-      }
-      return { ...o, level: newLevel };
-    }));
+  // POST запит на сервер (з rate limit 1 раз/хвилину)
+  try {
+    const response = await fetch(`${SERVER_URL}/api/buildings/upgrade`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId:     user.uid,
+        buildingId: uid,
+        level:      newLevel,
+        name:       obj.name,
+        type:       obj.type,
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Rate limit спрацював
+      alert(`⚠️ ${data.error}`);
+    }
+  } catch (err) {
+    console.error('Помилка збереження на сервері:', err);
   }
+
+  // Оновлюємо стан і маркер на карті
+  setBuiltObjects(prev => prev.map(o => {
+    if (o.uid !== uid) return o;
+    const marker = markersRef.current[uid];
+    if (marker) {
+      marker.setPopupContent(`<b>${getLevelIcon(o.name, newLevel)} ${o.name}</b><br>Рівень: ${newLevel}`);
+      marker.openPopup();
+    }
+    return { ...o, level: newLevel };
+  }));
+}
 
   const prices = { concrete: 500, metal: 800, wood: 300, asphalt: 400, builders: 2000 };
   function buyResource(type) {
