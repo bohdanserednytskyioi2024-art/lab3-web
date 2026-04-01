@@ -1,5 +1,3 @@
-const SERVER_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:5000';
-
 import { useState, useEffect, useRef } from 'react';
 import {
   collection, addDoc, getDocs, doc,
@@ -8,6 +6,9 @@ import {
 import { db } from '../firebase';
 import BuildingCard from '../components/BuildingCard';
 import Budget from '../components/Budget';
+
+// Ось сюди ми перенесли SERVER_URL:
+const SERVER_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:5000';
 
 const ICONS = {
   'Житловий комплекс': '🏢', 'Приватний будинок': '🏠', 'Гуртожиток': '🏨',
