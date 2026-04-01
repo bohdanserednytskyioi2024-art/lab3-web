@@ -132,25 +132,40 @@ export default function CityPage({ user }) {
     setDoc(doc(db, 'users', user.uid, 'state', 'resources'), resources);
   }, [resources, user, dataLoaded]);
 
-  // Завантаження покращених будівель з Node.js сервера
+ // Завантаження покращених будівель з Node.js сервера
 useEffect(() => {
   if (!user) return;
+
   async function loadUpgraded() {
     try {
+      const SERVER_URL = process.env.REACT_APP_SERVER_URL || 'https://city-simulator-server.onrender.com';
       const res = await fetch(`${SERVER_URL}/api/buildings?userId=${user.uid}`);
       const data = await res.json();
+
       if (data.buildings && data.buildings.length > 0) {
-        console.log('Покращені будівлі з сервера:', data.buildings);
-        // Оновлюємо рівні будівель які прийшли з сервера
+        console.log('Дані з сервера (GET):', data.buildings);
+        
         setBuiltObjects(prev => prev.map(obj => {
           const fromServer = data.buildings.find(b => b.id === obj.uid);
-          return fromServer ? { ...obj, level: fromServer.level } : obj;
+          
+          if (fromServer) {
+            // Оновлюємо маркер на карті, якщо він є
+            if (markersRef && markersRef.current) {
+                const marker = markersRef.current[obj.uid];
+                if (marker) {
+                  marker.setPopupContent(`<b>${getLevelIcon(obj.name, fromServer.level)} ${obj.name}</b><br>Рівень: ${fromServer.level}`);
+                }
+            }
+            return { ...obj, level: fromServer.level };
+          }
+          return obj;
         }));
       }
     } catch (err) {
       console.error('Помилка завантаження з сервера:', err);
     }
   }
+
   loadUpgraded();
 }, [user]);
 
@@ -405,6 +420,28 @@ useEffect(() => {
         }
       </section>
 
+      {/* НОВИЙ БЛОК: ДЕМОНСТРАЦІЯ ВИКЛАДАЧУ (GET-ЗАПИТ) */}
+      <section style={{ ...sectionStyle, border: '3px solid #27ae60', backgroundColor: '#eafaf1' }}>
+        <h2 style={{ ...h2Style, borderBottomColor: '#27ae60' }}>🏢 Дані з Node.js сервера (GET-запит)</h2>
+        <p style={{ color: '#2c3e50', marginBottom: '15px' }}>
+          Тут відображаються покращені будівлі, завантажені напряму з API сервера на Render.
+        </p>
+        {builtObjects.filter(b => b.level > 1).length > 0 ? (
+          <ul style={{ paddingLeft: '20px', margin: 0, listStyleType: 'square' }}>
+            {builtObjects.filter(b => b.level > 1).map(b => (
+              <li key={b.uid} style={{ marginBottom: '8px', fontSize: '16px' }}>
+                {getLevelIcon(b.name, b.level)} <strong>{b.name}</strong> — Покращено до <b>{b.level}</b> рівня 
+                <span style={{ color: '#7f8c8d', fontSize: '14px' }}> (ID: {b.uid.slice(0, 5)}...)</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p style={{ margin: 0, color: '#e74c3c', fontWeight: 'bold' }}>
+            Поки немає покращених будівель. Спробуйте покращити щось у списку вище!
+          </p>
+        )}
+      </section>
+      
       {/* РЕСУРСИ */}
       <section style={sectionStyle}>
         <h2 style={h2Style}>Ресурси міста</h2>
