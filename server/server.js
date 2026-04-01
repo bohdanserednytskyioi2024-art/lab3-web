@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { db } = require('./firebaseConfig');
@@ -8,6 +9,8 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+// Роздаємо статичні файли з папки build (Виконання 1 пункту лаби!)
+app.use(express.static(path.join(__dirname, 'build')));
 
 // Rate limiter — повністю виправлено для IPv6
 const saveLimiter = rateLimit({
@@ -63,6 +66,11 @@ app.post('/api/buildings/upgrade', saveLimiter, async (req, res) => {
 // Тестовий маршрут
 app.get('/api/message', (req, res) => {
   res.json({ message: 'Hello from the backend!' });
+});
+
+// Будь-який інший запит, який не є API, буде повертати наш React-сайт
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
 app.listen(PORT, () => {
