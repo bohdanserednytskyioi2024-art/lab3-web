@@ -69,7 +69,8 @@ app.get('/api/message', (req, res) => {
 });
 
 // Будь-який інший запит, який не є API, буде повертати наш React-сайт
-app.get('*', (req, res) => {
+// ВИПРАВЛЕНО ТУТ: замість '*' використовуємо регулярний вираз /.*/ для Express 5
+app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
